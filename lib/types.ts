@@ -20,7 +20,7 @@ export type Application = {
     notifsReaction: string
 };
 
-export type AssignmentStatus = "assigned" | "in progress" | "recused" | "completed";
+export type AssignmentStatus = "assigned" | "recused" | "completed";
 
 export type Assignment = {
   uscId: string,
@@ -32,7 +32,6 @@ export type ReviewScore = 1 | 2 | 3;
 
 export type Review = {
     uscId: string,
-    reviewerName: string,
     reviewerEmail: string,
     experienceScore: ReviewScore,
     researchScore: ReviewScore,
