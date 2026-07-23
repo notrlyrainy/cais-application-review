@@ -10,6 +10,7 @@ function getSheetsClient() {
     return google.sheets({version: "v4", auth });
 }
 
+//READ FUNCTIONS
 
 export async function getRows(spreadsheetId: string, range: string): Promise<string[][]> {
     const sheets = getSheetsClient();
@@ -92,4 +93,71 @@ export async function getReviews(): Promise<Review[]> {
             submittedAt: get("submitted_at")
         }),
     )
+}
+
+
+
+//WRITE FUNCTIONS
+
+export async function submitReview(review: Review): Promise<void> {
+    const sheets = getSheetsClient();
+    await sheets.spreadsheets.values.append({
+        spreadsheetId: process.env.SHEET_ID!,
+        range: "Reviews",
+        valueInputOption: "RAW",
+        requestBody: {
+            values: [[
+                review.uscId,
+                review.reviewerEmail,
+                review.experienceScore,
+                review.researchScore,
+                review.qualityScore,
+                review.notes,
+                review.submittedAt,
+            ]],
+        },
+    });
+}
+
+export async function createAssignment(uscId: string, reviewerEmail: string): Promise<void> {
+    const sheets = getSheetsClient();
+    await sheets.spreadsheets.values.append({
+        spreadsheetId: process.env.SHEET_ID!,
+        range: "Assignments",
+        valueInputOption: "RAW",
+        requestBody: {
+            values: [[
+                uscId,
+                reviewerEmail,
+                "assigned",
+            ]],
+        },
+    });
+}
+
+
+export async function setAssignmentStatus(
+  uscId: string,
+  reviewerEmail: string,
+  status: AssignmentStatus
+): Promise<void> {
+  const rows = await getRows(process.env.SHEET_ID!, "Assignments");
+  const headers = (rows[0] ?? []).map((h) => h.trim().toLowerCase());
+  const uscIdCol = headers.indexOf("usc_id");
+  const emailCol = headers.indexOf("reviewer_email");
+
+  const dataIndex = rows.slice(1).findIndex(
+    (row) => row[uscIdCol] === uscId && row[emailCol] === reviewerEmail
+  );
+  if (dataIndex === -1) return; // no matching assignment
+
+  const sheetRow = dataIndex + 2; // +1 for header, +1 for 1-based
+
+  const sheets = getSheetsClient();
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: process.env.SHEET_ID!,
+    range: `Assignments!C${sheetRow}`,
+    valueInputOption: "RAW",
+    requestBody: { values: [[status]] },
+  });
 }
