@@ -22,6 +22,6 @@ export async function GET() {
             reviews: visibleReviews(forThisApp, session.user.email),
         }
     })
-
+    
     return Response.json({items});
 }
