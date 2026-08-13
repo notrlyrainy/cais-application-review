@@ -6,6 +6,7 @@ import { CRITERIA } from "@/lib/scoring";
 import { ReviewScore } from "@/lib/types";
 import { useSession } from "@/lib/auth-client";
 import { reviewerName } from "@/config/reviewers";
+import Link from "next/link";
 
 type DetailData = {
   application: Application;
@@ -62,6 +63,9 @@ export default function ApplicationDetail() {
 
   return (
     <div className="p-8 max-w-3xl mx-auto">
+      <Link href="/dashboard" className="text-sm underline mb-4 inline-block">
+        ← Back to dashboard
+      </Link>
       <h1 className="text-2xl font-bold mb-1">{app.name}</h1>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
         {app.year} · {app.majorMinor} · {app.email}
@@ -109,7 +113,7 @@ export default function ApplicationDetail() {
         </p>
       ) : iReviewed ? (
         <div className="mt-6 space-y-2">
-          <h2 className="font-bold">Reviews</h2>
+            <h2 className="font-bold">Reviews</h2>
           {data.reviews.map((review) => (
             <div key={review.reviewerEmail} className="border rounded-lg p-4">
               <p className="font-semibold text-sm">
@@ -120,6 +124,7 @@ export default function ApplicationDetail() {
                 Experience: {review.experienceScore} · Research: {review.researchScore} · Quality: {review.qualityScore}
               </p>
               <p className="text-sm whitespace-pre-wrap">{review.notes}</p>
+              
             </div>
           ))}
         </div>
