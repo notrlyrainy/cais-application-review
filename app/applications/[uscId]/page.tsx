@@ -4,6 +4,8 @@ import { useParams } from "next/navigation";
 import { Application, Assignment, Review } from "@/lib/types";
 import { CRITERIA } from "@/lib/scoring";
 import { ReviewScore } from "@/lib/types";
+import { useSession } from "@/lib/auth-client";
+import { reviewerName } from "@/config/reviewers";
 
 type DetailData = {
   application: Application;
@@ -15,27 +17,83 @@ export default function ApplicationDetail() {
   const { uscId } = useParams<{ uscId: string }>();
   const [data, setData] = useState<DetailData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [working, setWorking] = useState(false);
+  const { data: session } = useSession();
+  const myEmail = session?.user?.email;
+
+  function reload() {
+    return fetch(`/api/applications/${uscId}`)
+      .then((r) => r.json())
+      .then((d) => setData(d));
+  }
 
   useEffect(() => {
-    fetch(`/api/applications/${uscId}`)
-      .then((r) => r.json())
-      .then((d) => {
-        setData(d);
-        setLoading(false);
-      });
+    reload().then(() => setLoading(false));
   }, [uscId]);
 
   if (loading) return <p className="p-8">Loading…</p>;
   if (!data?.application) return <p className="p-8">Not found.</p>;
 
   const app = data.application;
+  const myAssignment = data.assignments.find((a) => a.reviewerEmail === myEmail);
+  const iReviewed = data.reviews.some((r) => r.reviewerEmail === myEmail);
+
+  async function assignToMe() {
+    setWorking(true);
+    await fetch("/api/assignments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uscId }),
+    });
+    await reload();
+    setWorking(false);
+  }
+
+  async function recuse() {
+    setWorking(true);
+    await fetch("/api/assignments/recuse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uscId }),
+    });
+    await reload();
+    setWorking(false);
+  }
 
   return (
     <div className="p-8 max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold mb-1">{app.name}</h1>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
         {app.year} · {app.majorMinor} · {app.email}
       </p>
+
+      <div className="flex items-center justify-between text-sm border rounded-lg p-3 mb-6">
+        <p className="text-gray-500 dark:text-gray-400">
+          {data.assignments.length === 0
+            ? "Unassigned"
+            : data.assignments
+                .map((a) => `${reviewerName(a.reviewerEmail)} (${a.status})`)
+                .join(", ")}
+        </p>
+        {myEmail && !myAssignment && (
+          <button
+            onClick={assignToMe}
+            disabled={working}
+            className="px-2 py-1 rounded border text-xs disabled:opacity-40"
+          >
+            Assign to me
+          </button>
+        )}
+        {myAssignment?.status === "assigned" && (
+          <button
+            onClick={recuse}
+            disabled={working}
+            className="px-2 py-1 rounded border text-xs text-red-600 dark:text-red-400 disabled:opacity-40"
+          >
+            Recuse (conflict of interest)
+          </button>
+        )}
+      </div>
 
       <section className="space-y-4">
         <Field label="Why do you want to join?" value={app.whyJoin} />
@@ -44,14 +102,30 @@ export default function ApplicationDetail() {
         <Field label="AI social issue proposal" value={app.socialResponse} />
         <Field label="Passion response" value={app.passionResponse} />
       </section>
-      <ReviewForm
-        uscId={uscId}
-        onSubmitted={() => {
-          fetch(`/api/applications/${uscId}`)
-            .then((r) => r.json())
-            .then((d) => setData(d));
-        }}
-      />
+
+      {myAssignment?.status === "recused" ? (
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-6 border rounded-lg p-4">
+          You&apos;ve recused yourself from this application — no review form for you here.
+        </p>
+      ) : iReviewed ? (
+        <div className="mt-6 space-y-2">
+          <h2 className="font-bold">Reviews</h2>
+          {data.reviews.map((review) => (
+            <div key={review.reviewerEmail} className="border rounded-lg p-4">
+              <p className="font-semibold text-sm">
+                {reviewerName(review.reviewerEmail)}
+                {review.reviewerEmail === myEmail && " (you)"}
+              </p>
+              <p className="text-sm">
+                Experience: {review.experienceScore} · Research: {review.researchScore} · Quality: {review.qualityScore}
+              </p>
+              <p className="text-sm whitespace-pre-wrap">{review.notes}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <ReviewForm uscId={uscId} onSubmitted={reload} />
+      )}
     </div>
   );
 }

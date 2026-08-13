@@ -1,13 +1,19 @@
 import { google } from "googleapis";
 import { Application, Assignment, AssignmentStatus, Review, ReviewScore } from "./types";
 
+let cachedClient: ReturnType<typeof google.sheets> | null = null;
+
 function getSheetsClient() {
-    const auth = new google.auth.JWT({
-        email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-        scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-    return google.sheets({version: "v4", auth });
+  if (cachedClient) return cachedClient;
+
+  const auth = new google.auth.JWT({
+    email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
+
+  cachedClient = google.sheets({ version: "v4", auth });
+  return cachedClient;
 }
 
 //READ FUNCTIONS
