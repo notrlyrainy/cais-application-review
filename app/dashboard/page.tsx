@@ -25,10 +25,16 @@ export default function Dashboard() {
 
   const visibleItems = items.filter((item) => {
     if (filter === "all") return true;
-    if (filter === "unassigned") return item.assignments.length === 0;
+
+    if (filter === "unassigned") {
+      return item.assignments.length === 0;
+    }
+
     if (filter === "mine") {
       return item.assignments.some(
-        (a) => a.reviewerEmail === myEmail
+        (a) =>
+          a.reviewerEmail === myEmail &&
+          a.status !== "recused"
       );
     }
 
@@ -122,41 +128,39 @@ export default function Dashboard() {
       </div>
 
       <ul className="space-y-2">
-        {visibleItems.map((item) => {
-          return (
-            <li
-              key={item.application.uscId}
-              className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800"
+        {visibleItems.map((item) => (
+          <li
+            key={item.application.uscId}
+            className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800"
+          >
+            <Link
+              href={`/applications/${item.application.uscId}`}
+              className="block mb-2"
             >
-              <Link
-                href={`/applications/${item.application.uscId}`}
-                className="block mb-2"
-              >
-                <p className="font-medium">
-                  {item.application.name}
-                </p>
+              <p className="font-medium">
+                {item.application.name}
+              </p>
 
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {item.application.year} ·{" "}
-                  {item.application.majorMinor}
-                </p>
-              </Link>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {item.application.year} ·{" "}
+                {item.application.majorMinor}
+              </p>
+            </Link>
 
-              <div className="flex items-center justify-between text-sm">
-                <p className="text-gray-500 dark:text-gray-400">
-                  {item.assignments.length === 0
-                    ? "Unassigned"
-                    : item.assignments
-                        .map(
-                          (a) =>
-                            `${reviewerName(a.reviewerEmail)} (${a.status})`
-                        )
-                        .join(", ")}
-                </p>
-              </div>
-            </li>
-          );
-        })}
+            <div className="flex items-center justify-between text-sm">
+              <p className="text-gray-500 dark:text-gray-400">
+                {item.assignments.length === 0
+                  ? "Unassigned"
+                  : item.assignments
+                      .map(
+                        (a) =>
+                          `${reviewerName(a.reviewerEmail)} (${a.status})`
+                      )
+                      .join(", ")}
+              </p>
+            </div>
+          </li>
+        ))}
       </ul>
     </div>
   );
