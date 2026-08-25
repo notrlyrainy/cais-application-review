@@ -52,13 +52,36 @@ export default function ApplicationDetail() {
 
   async function recuse() {
     setWorking(true);
-    await fetch("/api/assignments/recuse", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uscId }),
-    });
-    await reload();
-    setWorking(false);
+
+    try {
+      const response = await fetch(
+        "/api/assignments/recuse",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ uscId }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        alert(
+          result.error ?? "Failed to recuse from application."
+        );
+        return;
+      }
+
+      alert(
+        `${result.replacementReviewer.name} has been assigned as your replacement.`
+      );
+
+      await reload();
+    } finally {
+      setWorking(false);
+    }
   }
 
   return (
