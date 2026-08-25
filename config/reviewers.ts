@@ -1,5 +1,4 @@
 export const REVIEWERS = [
-    { name: "Reviewer 1", email: "reviewer1@usc.edu"},
     { name: "Ruina", email: "ruinaliu@usc.edu"},
     { name: "Annie", email: "anniegao@usc.edu" },
     { name: "Alvin", email: "tanalvin@usc.edu" },

@@ -204,3 +204,23 @@ export async function setDecision(uscId: string, decision: DecisionValue, notes:
     });
   }
 }
+
+//bulk assignment function
+export async function createAssignments(
+  assignments: { uscId: string; reviewerEmail: string }[]
+): Promise<void> {
+  const sheets = getSheetsClient();
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: process.env.SHEET_ID!,
+    range: "Assignments",
+    valueInputOption: "RAW",
+    requestBody: {
+      values: assignments.map(({ uscId, reviewerEmail }) => [
+        uscId,
+        reviewerEmail,
+        "assigned",
+      ]),
+    },
+  });
+}
