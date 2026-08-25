@@ -39,3 +39,11 @@ export type Review = {
     notes: string,
     submittedAt: string
 };
+
+export type DecisionValue = "accepted" | "rejected" | "undecided";
+
+export type Decision = {
+  uscId: string;
+  decision: DecisionValue;
+  notes: string;
+};

@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import { Application, Assignment, AssignmentStatus, Review, ReviewScore } from "./types";
+import { Application, Assignment, AssignmentStatus, Review, ReviewScore, Decision, DecisionValue } from "./types";
 
 let cachedClient: ReturnType<typeof google.sheets> | null = null;
 
@@ -166,4 +166,41 @@ export async function setAssignmentStatus(
     valueInputOption: "RAW",
     requestBody: { values: [[status]] },
   });
+}
+
+
+export async function getDecisions(): Promise<Decision[]> {
+  const rows = await getRows(process.env.SHEET_ID!, "Decisions");
+  return rowsToObjects<Decision>(rows, (get) => ({
+    uscId: get("usc_id"),
+    decision: (get("decision") || "undecided") as DecisionValue,
+    notes: get("notes"),
+  }));
+}
+
+
+export async function setDecision(uscId: string, decision: DecisionValue, notes: string): Promise<void> {
+  const rows = await getRows(process.env.SHEET_ID!, "Decisions");
+  const headers = (rows[0] ?? []).map((h) => h.trim().toLowerCase());
+  const uscIdCol = headers.indexOf("usc_id");
+
+  const dataIndex = rows.slice(1).findIndex((row) => row[uscIdCol] === uscId);
+  const sheets = getSheetsClient();
+
+  if (dataIndex === -1) {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: process.env.SHEET_ID!,
+      range: "Decisions",
+      valueInputOption: "RAW",
+      requestBody: { values: [[uscId, decision, notes]] },
+    });
+  } else {
+    const sheetRow = dataIndex + 2;
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: process.env.SHEET_ID!,
+      range: `Decisions!A${sheetRow}:C${sheetRow}`,
+      valueInputOption: "RAW",
+      requestBody: { values: [[uscId, decision, notes]] },
+    });
+  }
 }
