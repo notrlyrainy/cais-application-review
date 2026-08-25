@@ -20,25 +20,37 @@ type DetailData = {
 };
 
 export default function ApplicationDetail() {
-  const { uscId } = useParams<{ uscId: string }>();
-  const [data, setData] = useState<DetailData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [working, setWorking] = useState(false);
+  const { uscId } =
+    useParams<{ uscId: string }>();
+
+  const [data, setData] =
+    useState<DetailData | null>(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [working, setWorking] =
+    useState(false);
 
   const { data: session } = useSession();
+
   const myEmail = session?.user?.email;
 
   function reload() {
-    return fetch(`/api/applications/${uscId}`)
-      .then((r) => r.json())
-      .then((d) => setData(d));
+    return fetch(
+      `/api/applications/${uscId}`
+    )
+      .then((response) => response.json())
+      .then((result) => setData(result));
   }
 
   useEffect(() => {
     reload().then(() => setLoading(false));
   }, [uscId]);
 
-  if (loading) return <p className="p-8">Loading…</p>;
+  if (loading) {
+    return <p className="p-8">Loading…</p>;
+  }
 
   if (!data?.application) {
     return <p className="p-8">Not found.</p>;
@@ -46,16 +58,26 @@ export default function ApplicationDetail() {
 
   const app = data.application;
 
-  const myAssignment = data.assignments.find(
-    (a) => a.reviewerEmail === myEmail
-  );
+  const activeAssignment =
+    data.assignments.find(
+      (assignment) =>
+        assignment.reviewerEmail === myEmail &&
+        assignment.status === "assigned"
+    );
+
+  const recusedAssignment =
+    data.assignments.find(
+      (assignment) =>
+        assignment.reviewerEmail === myEmail &&
+        assignment.status === "recused"
+    );
 
   const iReviewed = data.reviews.some(
-    (r) => r.reviewerEmail === myEmail
+    (review) =>
+      review.reviewerEmail === myEmail
   );
 
-  // Only actively assigned reviewers can submit a review.
-  const canReview = myAssignment?.status === "assigned";
+  const canReview = Boolean(activeAssignment);
 
   async function recuse() {
     setWorking(true);
@@ -66,19 +88,24 @@ export default function ApplicationDetail() {
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
           },
-          body: JSON.stringify({ uscId }),
+          body: JSON.stringify({
+            uscId,
+          }),
         }
       );
 
-      const result = await response.json();
+      const result =
+        await response.json();
 
       if (!response.ok) {
         alert(
           result.error ??
             "Failed to recuse from application."
         );
+
         return;
       }
 
@@ -106,7 +133,8 @@ export default function ApplicationDetail() {
       </h1>
 
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-        {app.year} · {app.majorMinor} · {app.email}
+        {app.year} · {app.majorMinor} ·{" "}
+        {app.email}
       </p>
 
       <div className="flex items-center justify-between text-sm border rounded-lg p-3 mb-6">
@@ -114,9 +142,16 @@ export default function ApplicationDetail() {
           {data.assignments.length === 0
             ? "Unassigned"
             : data.assignments
+                .filter(
+                  (assignment) =>
+                    assignment.status !==
+                    "reassigned"
+                )
                 .map(
-                  (a) =>
-                    `${reviewerName(a.reviewerEmail)} (${a.status})`
+                  (assignment) =>
+                    `${reviewerName(
+                      assignment.reviewerEmail
+                    )} (${assignment.status})`
                 )
                 .join(", ")}
         </p>
@@ -161,7 +196,9 @@ export default function ApplicationDetail() {
 
       {iReviewed ? (
         <div className="mt-6 space-y-2">
-          <h2 className="font-bold">Reviews</h2>
+          <h2 className="font-bold">
+            Reviews
+          </h2>
 
           {data.reviews.map((review) => (
             <div
@@ -169,15 +206,24 @@ export default function ApplicationDetail() {
               className="border rounded-lg p-4"
             >
               <p className="font-semibold text-sm">
-                {reviewerName(review.reviewerEmail)}
-                {review.reviewerEmail === myEmail &&
-                  " (you)"}
+                {reviewerName(
+                  review.reviewerEmail
+                )}
+
+                {review.reviewerEmail ===
+                  myEmail && " (you)"}
               </p>
 
               <p className="text-sm">
-                Experience: {review.experienceScore} ·
-                Research: {review.researchScore} ·
-                Quality: {review.qualityScore}
+                Experience: {
+                  review.experienceScore
+                }{" "}
+                · Research: {
+                  review.researchScore
+                }{" "}
+                · Quality: {
+                  review.qualityScore
+                }
               </p>
 
               <p className="text-sm whitespace-pre-wrap">
@@ -194,7 +240,9 @@ export default function ApplicationDetail() {
       ) : (
         <div className="mt-6 border rounded-lg p-4">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            You are not assigned to review this application.
+            {recusedAssignment
+              ? "You have recused yourself from this application and cannot submit a review."
+              : "You are not assigned to review this application."}
           </p>
         </div>
       )}
@@ -229,20 +277,25 @@ export function ReviewForm({
   uscId: string;
   onSubmitted: () => void;
 }) {
-  const [scores, setScores] = useState<
-    Record<string, ReviewScore | null>
-  >({
-    experienceScore: null,
-    researchScore: null,
-    qualityScore: null,
-  });
+  const [scores, setScores] =
+    useState<
+      Record<string, ReviewScore | null>
+    >({
+      experienceScore: null,
+      researchScore: null,
+      qualityScore: null,
+    });
 
-  const [notes, setNotes] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [notes, setNotes] =
+    useState("");
 
-  const allScored = Object.values(scores).every(
-    (s) => s !== null
-  );
+  const [submitting, setSubmitting] =
+    useState(false);
+
+  const allScored =
+    Object.values(scores).every(
+      (score) => score !== null
+    );
 
   async function handleSubmit() {
     if (!allScored) return;
@@ -250,24 +303,31 @@ export function ReviewForm({
     setSubmitting(true);
 
     try {
-      const response = await fetch("/api/reviews", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          uscId,
-          ...scores,
-          notes,
-        }),
-      });
+      const response = await fetch(
+        "/api/reviews",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            uscId,
+            ...scores,
+            notes,
+          }),
+        }
+      );
 
-      const result = await response.json();
+      const result =
+        await response.json();
 
       if (!response.ok) {
         alert(
-          result.error ?? "Failed to submit review."
+          result.error ??
+            "Failed to submit review."
         );
+
         return;
       }
 
@@ -279,7 +339,9 @@ export function ReviewForm({
 
   return (
     <div className="border rounded-lg p-4 mt-6 space-y-4">
-      <h2 className="font-bold">Your Review</h2>
+      <h2 className="font-bold">
+        Your Review
+      </h2>
 
       {CRITERIA.map((criterion) => (
         <div key={criterion.key}>
@@ -304,7 +366,9 @@ export function ReviewForm({
                     : "bg-transparent"
                 }`}
                 title={
-                  criterion.levels[n as 1 | 2 | 3]
+                  criterion.levels[
+                    n as 1 | 2 | 3
+                  ]
                 }
               >
                 {n}
@@ -321,8 +385,8 @@ export function ReviewForm({
 
         <textarea
           value={notes}
-          onChange={(e) =>
-            setNotes(e.target.value)
+          onChange={(event) =>
+            setNotes(event.target.value)
           }
           className="w-full border rounded p-2 text-sm bg-transparent"
           rows={4}
@@ -331,7 +395,9 @@ export function ReviewForm({
 
       <button
         onClick={handleSubmit}
-        disabled={!allScored || submitting}
+        disabled={
+          !allScored || submitting
+        }
         className="px-4 py-2 rounded bg-black text-white dark:bg-white dark:text-black disabled:opacity-40"
       >
         {submitting

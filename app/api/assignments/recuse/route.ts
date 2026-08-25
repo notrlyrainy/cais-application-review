@@ -6,7 +6,9 @@ import {
 } from "@/lib/sheets";
 import { REVIEWERS } from "@/config/reviewers";
 
-export async function POST(request: Request) {
+export async function POST(
+  request: Request
+) {
   const session = await auth();
 
   if (!session?.user?.email) {
@@ -17,6 +19,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
+
   const uscId = body.uscId as string;
 
   if (!uscId) {
@@ -26,41 +29,60 @@ export async function POST(request: Request) {
     );
   }
 
-  const reviewerEmail = session.user.email;
-  const assignments = await getAssignments();
+  const reviewerEmail =
+    session.user.email;
 
-  const myAssignment = assignments.find(
-    (assignment) =>
-      assignment.uscId === uscId &&
-      assignment.reviewerEmail === reviewerEmail
-  );
+  const assignments =
+    await getAssignments();
+
+  const myAssignment =
+    assignments.find(
+      (assignment) =>
+        assignment.uscId === uscId &&
+        assignment.reviewerEmail ===
+          reviewerEmail &&
+        assignment.status === "assigned"
+    );
 
   if (!myAssignment) {
     return Response.json(
-      { error: "You are not assigned to this application." },
+      {
+        error:
+          "You do not have an active assignment for this application.",
+      },
       { status: 403 }
     );
   }
 
-  if (myAssignment.status !== "assigned") {
-    return Response.json(
-      { error: "This assignment can no longer be recused." },
-      { status: 409 }
+  // A reviewer who recused themselves can never be assigned
+  // this application again. Completed reviewers are also
+  // excluded because the application already has their review.
+  const unavailableReviewers =
+    new Set(
+      assignments
+        .filter(
+          (assignment) =>
+            assignment.uscId === uscId &&
+            (assignment.status ===
+              "recused" ||
+              assignment.status ===
+                "completed" ||
+              assignment.status ===
+                "assigned")
+        )
+        .map(
+          (assignment) =>
+            assignment.reviewerEmail
+        )
     );
-  }
 
-  // Anyone who has ever been assigned to this application is excluded.
-  // This includes the other reviewer and anyone who previously recused.
-  const unavailableReviewers = new Set(
-    assignments
-      .filter((assignment) => assignment.uscId === uscId)
-      .map((assignment) => assignment.reviewerEmail)
-  );
-
-  // Find the eligible reviewer with the fewest unread applications.
-  const eligibleReviewers = REVIEWERS.filter(
-    (reviewer) => !unavailableReviewers.has(reviewer.email)
-  );
+  const eligibleReviewers =
+    REVIEWERS.filter(
+      (reviewer) =>
+        !unavailableReviewers.has(
+          reviewer.email
+        )
+    );
 
   if (eligibleReviewers.length === 0) {
     return Response.json(
@@ -72,36 +94,40 @@ export async function POST(request: Request) {
     );
   }
 
-  const replacementReviewer = eligibleReviewers.reduce(
-    (bestReviewer, reviewer) => {
-      const reviewerUnreadCount = assignments.filter(
-        (assignment) =>
-          assignment.reviewerEmail === reviewer.email &&
-          assignment.status === "assigned"
-      ).length;
+  const replacementReviewer =
+    eligibleReviewers.reduce(
+      (bestReviewer, reviewer) => {
+        const reviewerUnreadCount =
+          assignments.filter(
+            (assignment) =>
+              assignment.reviewerEmail ===
+                reviewer.email &&
+              assignment.status ===
+                "assigned"
+          ).length;
 
-      const bestUnreadCount = assignments.filter(
-        (assignment) =>
-          assignment.reviewerEmail === bestReviewer.email &&
-          assignment.status === "assigned"
-      ).length;
+        const bestUnreadCount =
+          assignments.filter(
+            (assignment) =>
+              assignment.reviewerEmail ===
+                bestReviewer.email &&
+              assignment.status ===
+                "assigned"
+          ).length;
 
-      // REVIEWERS order acts as the tie-breaker because we only
-      // replace the current best when the count is strictly lower.
-      return reviewerUnreadCount < bestUnreadCount
-        ? reviewer
-        : bestReviewer;
-    }
-  );
+        return reviewerUnreadCount <
+          bestUnreadCount
+          ? reviewer
+          : bestReviewer;
+      }
+    );
 
-  // Mark the current reviewer as recused.
   await setAssignmentStatus(
     uscId,
     reviewerEmail,
     "recused"
   );
 
-  // Assign the replacement reviewer.
   await createAssignment(
     uscId,
     replacementReviewer.email

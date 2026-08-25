@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Application, Assignment, Review } from "@/lib/types";
+import {
+  Application,
+  Assignment,
+  Review,
+} from "@/lib/types";
 import { useSession } from "@/lib/auth-client";
 import { reviewerName } from "@/config/reviewers";
 import Link from "next/link";
@@ -12,29 +16,44 @@ type Item = {
   reviews: Review[];
 };
 
+const ADMIN_EMAIL = "anniegao@usc.edu";
+
 export default function Dashboard() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [filter, setFilter] = useState<
     "all" | "mine" | "unassigned"
   >("all");
-  const [autoAssigning, setAutoAssigning] = useState(false);
+
+  const [autoAssigning, setAutoAssigning] =
+    useState(false);
+
+  const [rebalancing, setRebalancing] =
+    useState(false);
 
   const { data: session } = useSession();
   const myEmail = session?.user?.email;
+
+  const isAdmin = myEmail === ADMIN_EMAIL;
 
   const visibleItems = items.filter((item) => {
     if (filter === "all") return true;
 
     if (filter === "unassigned") {
-      return item.assignments.length === 0;
+      return item.assignments.filter(
+        (assignment) =>
+          assignment.status === "assigned" ||
+          assignment.status === "completed"
+      ).length === 0;
     }
 
     if (filter === "mine") {
       return item.assignments.some(
-        (a) =>
-          a.reviewerEmail === myEmail &&
-          a.status !== "recused"
+        (assignment) =>
+          assignment.reviewerEmail === myEmail &&
+          (assignment.status === "assigned" ||
+            assignment.status === "completed")
       );
     }
 
@@ -43,7 +62,7 @@ export default function Dashboard() {
 
   function loadItems() {
     return fetch("/api/applications")
-      .then((r) => r.json())
+      .then((response) => response.json())
       .then((data) => {
         setItems(data.items);
         setLoading(false);
@@ -64,19 +83,27 @@ export default function Dashboard() {
     setAutoAssigning(true);
 
     try {
-      const response = await fetch("/api/assignments/auto", {
-        method: "POST",
-      });
+      const response = await fetch(
+        "/api/assignments/auto",
+        {
+          method: "POST",
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.error ?? "Failed to assign reviewers.");
+        alert(
+          data.error ??
+            "Failed to assign reviewers."
+        );
         return;
       }
 
       if (data.assignmentsCreated === 0) {
-        alert("All applications already have two reviewers.");
+        alert(
+          "All applications already have two reviewers."
+        );
       } else {
         alert(
           `Created ${data.assignmentsCreated} reviewer assignments.`
@@ -89,26 +116,89 @@ export default function Dashboard() {
     }
   }
 
-  if (loading) return <p className="p-8">Loading...</p>;
+  async function rebalanceReviewers() {
+    const confirmed = window.confirm(
+      "Rebalance all unread applications?\n\nCompleted reviews will stay with their current reviewers. Unread applications may be reassigned to balance everyone's remaining workload."
+    );
+
+    if (!confirmed) return;
+
+    setRebalancing(true);
+
+    try {
+      const response = await fetch(
+        "/api/assignments/rebalance",
+        {
+          method: "POST",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(
+          data.error ??
+            "Failed to rebalance applications."
+        );
+        return;
+      }
+
+      if (data.assignmentsMoved === 0) {
+        alert(
+          "The unread applications are already balanced."
+        );
+      } else {
+        alert(
+          `Rebalanced ${data.assignmentsMoved} unread reviewer assignments.`
+        );
+      }
+
+      await loadItems();
+    } finally {
+      setRebalancing(false);
+    }
+  }
+
+  if (loading) {
+    return <p className="p-8">Loading...</p>;
+  }
 
   return (
     <div className="p-8 max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Applications</h1>
+        <h1 className="text-2xl font-bold">
+          Applications
+        </h1>
 
-        <button
-          onClick={autoAssignReviewers}
-          disabled={autoAssigning}
-          className="px-3 py-2 rounded bg-black text-white disabled:opacity-40"
-        >
-          {autoAssigning
-            ? "Assigning..."
-            : "Assign new applications"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={autoAssignReviewers}
+            disabled={autoAssigning}
+            className="px-3 py-2 rounded bg-black text-white disabled:opacity-40"
+          >
+            {autoAssigning
+              ? "Assigning..."
+              : "Assign new applications"}
+          </button>
+
+          {isAdmin && (
+            <button
+              onClick={rebalanceReviewers}
+              disabled={rebalancing}
+              className="px-3 py-2 rounded border disabled:opacity-40"
+            >
+              {rebalancing
+                ? "Rebalancing..."
+                : "Rebalance unread applications"}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex gap-2 mb-4">
-        {(["all", "mine", "unassigned"] as const).map((f) => (
+        {(
+          ["all", "mine", "unassigned"] as const
+        ).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -153,8 +243,10 @@ export default function Dashboard() {
                   ? "Unassigned"
                   : item.assignments
                       .map(
-                        (a) =>
-                          `${reviewerName(a.reviewerEmail)} (${a.status})`
+                        (assignment) =>
+                          `${reviewerName(
+                            assignment.reviewerEmail
+                          )} (${assignment.status})`
                       )
                       .join(", ")}
               </p>
