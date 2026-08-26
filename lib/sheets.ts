@@ -5,6 +5,7 @@ import {
   AssignmentStatus,
   Review,
   ReviewScore,
+  OverallScore,
   Decision,
   DecisionValue,
 } from "./types";
@@ -129,16 +130,25 @@ export async function getReviews(): Promise<Review[]> {
     (get) => ({
       uscId: get("usc_id"),
       reviewerEmail: get("reviewer_email"),
+
       experienceScore: Number(
         get("experience_score")
       ) as ReviewScore,
+
       researchScore: Number(
         get("research_score")
       ) as ReviewScore,
+
       qualityScore: Number(
         get("quality_score")
       ) as ReviewScore,
+
+      overallScore: Number(
+        get("overall_score")
+      ) as OverallScore,
+
       notes: get("notes"),
+
       submittedAt: get("submitted_at"),
     })
   );
@@ -155,6 +165,7 @@ export async function submitReview(
     spreadsheetId: process.env.SHEET_ID!,
     range: "Reviews",
     valueInputOption: "RAW",
+
     requestBody: {
       values: [
         [
@@ -163,12 +174,73 @@ export async function submitReview(
           review.experienceScore,
           review.researchScore,
           review.qualityScore,
+          review.overallScore,
           review.notes,
           review.submittedAt,
         ],
       ],
     },
   });
+}
+
+export async function updateReview(
+  review: Review
+): Promise<boolean> {
+  const rows = await getRows(
+    process.env.SHEET_ID!,
+    "Reviews"
+  );
+
+  const headers = (rows[0] ?? []).map(
+    (header) => header.trim().toLowerCase()
+  );
+
+  const uscIdCol =
+    headers.indexOf("usc_id");
+
+  const emailCol =
+    headers.indexOf("reviewer_email");
+
+  const dataIndex = rows
+    .slice(1)
+    .findIndex(
+      (row) =>
+        row[uscIdCol] === review.uscId &&
+        row[emailCol] === review.reviewerEmail
+    );
+
+  if (dataIndex === -1) {
+    return false;
+  }
+
+  const sheetRow = dataIndex + 2;
+
+  const sheets = getSheetsClient();
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: process.env.SHEET_ID!,
+
+    range: `Reviews!A${sheetRow}:H${sheetRow}`,
+
+    valueInputOption: "RAW",
+
+    requestBody: {
+      values: [
+        [
+          review.uscId,
+          review.reviewerEmail,
+          review.experienceScore,
+          review.researchScore,
+          review.qualityScore,
+          review.overallScore,
+          review.notes,
+          review.submittedAt,
+        ],
+      ],
+    },
+  });
+
+  return true;
 }
 
 export async function createAssignment(
