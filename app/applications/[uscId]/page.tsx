@@ -133,10 +133,10 @@ export default function ApplicationDetail() {
   return (
     <div className="p-8 max-w-3xl mx-auto">
       <Link
-        href="/dashboard"
+        href="/dashboard?filter=mine&reviewFilter=awaiting"
         className="text-sm underline mb-4 inline-block"
       >
-        ← Back to dashboard
+        ← Back to awaiting reviews
       </Link>
 
       <h1 className="text-2xl font-bold mb-1">

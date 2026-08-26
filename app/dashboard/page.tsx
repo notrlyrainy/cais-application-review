@@ -9,6 +9,7 @@ import {
 import { useSession } from "@/lib/auth-client";
 import { reviewerName } from "@/config/reviewers";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 type Item = {
   application: Application;
@@ -19,17 +20,32 @@ type Item = {
 const ADMIN_EMAIL = "anniegao@usc.edu";
 
 export default function Dashboard() {
+  const searchParams = useSearchParams();
+
+  const initialFilter =
+    searchParams.get("filter") === "mine"
+      ? "mine"
+      : searchParams.get("filter") === "unassigned"
+        ? "unassigned"
+        : "all";
+
+  const initialReviewFilter =
+    searchParams.get("reviewFilter") === "awaiting"
+      ? "awaiting"
+      : searchParams.get("reviewFilter") === "reviewed"
+        ? "reviewed"
+        : "all";
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [filter, setFilter] = useState<
     "all" | "mine" | "unassigned"
-  >("all");
+  >(initialFilter);
 
   const [myReviewFilter, setMyReviewFilter] =
     useState<
       "all" | "awaiting" | "reviewed"
-    >("all");
+    >(initialReviewFilter);
 
   const [autoAssigning, setAutoAssigning] =
     useState(false);
