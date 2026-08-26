@@ -25,6 +25,8 @@ type Result = {
 
 type FilterMode = "experience" | "overall";
 
+type ResultsTab = "all" | "accepted";
+
 const EXPERIENCE_SCORES = [
   1,
   1.5,
@@ -52,6 +54,9 @@ export default function Results() {
 
   const [expandedId, setExpandedId] =
     useState<string | null>(null);
+
+  const [resultsTab, setResultsTab] =
+    useState<ResultsTab>("all");
 
   const [filterMode, setFilterMode] =
     useState<FilterMode>("overall");
@@ -116,8 +121,6 @@ export default function Results() {
   ) {
     setFilterMode(mode);
 
-    // Filters are independent, so switching
-    // categories clears the previous selection.
     setSelectedScores([]);
   }
 
@@ -141,12 +144,22 @@ export default function Results() {
       : OVERALL_SCORES;
 
   const filteredResults = useMemo(() => {
-    // No selected scores means show everything.
-    if (selectedScores.length === 0) {
-      return results;
+    let visibleResults =
+      resultsTab === "accepted"
+        ? results.filter(
+            (result) =>
+              result.decision === "accepted"
+          )
+        : results;
+
+    if (
+      resultsTab === "accepted" ||
+      selectedScores.length === 0
+    ) {
+      return visibleResults;
     }
 
-    return results.filter((result) => {
+    return visibleResults.filter((result) => {
       if (!result.averages) {
         return false;
       }
@@ -160,6 +173,7 @@ export default function Results() {
     });
   }, [
     results,
+    resultsTab,
     filterMode,
     selectedScores,
   ]);
@@ -167,7 +181,6 @@ export default function Results() {
   function getEffectiveDecision(
     result: Result
   ): DecisionValue {
-    // Explicit manual decisions take priority.
     if (
       result.decision === "accepted" ||
       result.decision === "rejected"
@@ -204,135 +217,174 @@ export default function Results() {
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">
+      <h1 className="text-2xl font-bold mb-4">
         Results
       </h1>
 
-      {/* Filters */}
-      <div className="border rounded-lg p-4 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold">
-            Filter applications
-          </h2>
+      {/* Results tabs */}
+      <div className="flex gap-2 mb-6 border-b">
+        <button
+          onClick={() =>
+            setResultsTab("all")
+          }
+          className={`px-4 py-2 text-sm ${
+            resultsTab === "all"
+              ? "border-b-2 border-black dark:border-white font-medium"
+              : "text-gray-500 dark:text-gray-400"
+          }`}
+        >
+          All Applications
+        </button>
 
-          {selectedScores.length > 0 && (
-            <button
-              onClick={clearFilters}
-              className="text-sm underline"
-            >
-              Clear filter
-            </button>
-          )}
-        </div>
+        <button
+          onClick={() =>
+            setResultsTab("accepted")
+          }
+          className={`px-4 py-2 text-sm ${
+            resultsTab === "accepted"
+              ? "border-b-2 border-black dark:border-white font-medium"
+              : "text-gray-500 dark:text-gray-400"
+          }`}
+        >
+          Accepted
+        </button>
+      </div>
 
-        {/* Filter category */}
-        <div className="flex gap-2 mb-4">
-          <button
-            onClick={() =>
-              changeFilterMode("experience")
-            }
-            className={`px-3 py-1.5 rounded text-sm border ${
-              filterMode === "experience"
-                ? "bg-black text-white dark:bg-white dark:text-black"
-                : "bg-transparent"
-            }`}
-          >
-            Experience
-          </button>
+      {resultsTab === "all" && (
+        <>
+          {/* Filters */}
+          <div className="border rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold">
+                Filter applications
+              </h2>
 
-          <button
-            onClick={() =>
-              changeFilterMode("overall")
-            }
-            className={`px-3 py-1.5 rounded text-sm border ${
-              filterMode === "overall"
-                ? "bg-black text-white dark:bg-white dark:text-black"
-                : "bg-transparent"
-            }`}
-          >
-            Overall
-          </button>
-        </div>
-
-        {/* Exact score multi-select */}
-        <div>
-          <p className="text-sm font-medium mb-2">
-            Average{" "}
-            {filterMode === "experience"
-              ? "Experience"
-              : "Overall"}{" "}
-            score
-          </p>
-
-          <div className="flex flex-wrap gap-2">
-            {scoreOptions.map((score) => {
-              const selected =
-                selectedScores.includes(score);
-
-              return (
+              {selectedScores.length > 0 && (
                 <button
-                  key={score}
-                  onClick={() =>
-                    toggleScore(score)
-                  }
-                  className={`min-w-12 px-3 py-1.5 rounded border text-sm ${
-                    selected
-                      ? "bg-black text-white dark:bg-white dark:text-black"
-                      : "bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800"
-                  }`}
+                  onClick={clearFilters}
+                  className="text-sm underline"
                 >
-                  {score}
+                  Clear filter
                 </button>
-              );
-            })}
+              )}
+            </div>
+
+            {/* Filter category */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() =>
+                  changeFilterMode("experience")
+                }
+                className={`px-3 py-1.5 rounded text-sm border ${
+                  filterMode === "experience"
+                    ? "bg-black text-white dark:bg-white dark:text-black"
+                    : "bg-transparent"
+                }`}
+              >
+                Experience
+              </button>
+
+              <button
+                onClick={() =>
+                  changeFilterMode("overall")
+                }
+                className={`px-3 py-1.5 rounded text-sm border ${
+                  filterMode === "overall"
+                    ? "bg-black text-white dark:bg-white dark:text-black"
+                    : "bg-transparent"
+                }`}
+              >
+                Overall
+              </button>
+            </div>
+
+            {/* Score multi-select */}
+            <div>
+              <p className="text-sm font-medium mb-2">
+                Average{" "}
+                {filterMode === "experience"
+                  ? "Experience"
+                  : "Overall"}{" "}
+                score
+              </p>
+
+              <div className="flex flex-wrap gap-2">
+                {scoreOptions.map((score) => {
+                  const selected =
+                    selectedScores.includes(score);
+
+                  return (
+                    <button
+                      key={score}
+                      onClick={() =>
+                        toggleScore(score)
+                      }
+                      className={`min-w-12 px-3 py-1.5 rounded border text-sm ${
+                        selected
+                          ? "bg-black text-white dark:bg-white dark:text-black"
+                          : "bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800"
+                      }`}
+                    >
+                      {score}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                Select one or more scores.
+              </p>
+            </div>
           </div>
 
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            Select one or more scores.
-          </p>
-        </div>
-      </div>
+          {/* Auto reject */}
+          <div className="border rounded-lg p-4 mb-6">
+            <h2 className="font-semibold mb-2">
+              Auto-reject
+            </h2>
 
-      {/* Auto reject */}
-      <div className="border rounded-lg p-4 mb-6">
-        <h2 className="font-semibold mb-2">
-          Auto-reject
-        </h2>
+            <div className="flex items-center gap-3">
+              <label
+                htmlFor="auto-reject"
+                className="text-sm"
+              >
+                Reject applications with an average
+                Overall score below
+              </label>
 
-        <div className="flex items-center gap-3">
-          <label
-            htmlFor="auto-reject"
-            className="text-sm"
-          >
-            Reject applications with an average
-            Overall score below
-          </label>
+              <input
+                id="auto-reject"
+                type="number"
+                min="1"
+                max="4"
+                step="0.5"
+                value={autoRejectThreshold}
+                onChange={(event) =>
+                  setAutoRejectThreshold(
+                    event.target.value
+                  )
+                }
+                className="w-20 border rounded p-2 bg-transparent text-sm"
+              />
+            </div>
 
-          <input
-            id="auto-reject"
-            type="number"
-            min="1"
-            max="4"
-            step="0.5"
-            value={autoRejectThreshold}
-            onChange={(event) =>
-              setAutoRejectThreshold(
-                event.target.value
-              )
-            }
-            className="w-20 border rounded p-2 bg-transparent text-sm"
-          />
-        </div>
-
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-          Auto-rejection only applies after both
-          reviewers have submitted their reviews.
-        </p>
-      </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              Auto-rejection only applies after both
+              reviewers have submitted their reviews.
+            </p>
+          </div>
+        </>
+      )}
 
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
         Showing {filteredResults.length} of{" "}
-        {results.length} applications
+        {resultsTab === "accepted"
+          ? results.filter(
+              (result) =>
+                result.decision === "accepted"
+            ).length
+          : results.length}{" "}
+        applications
       </p>
 
       <ul className="space-y-2">
@@ -584,8 +636,9 @@ export default function Results() {
 
       {filteredResults.length === 0 && (
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-6">
-          No applications match the selected
-          scores.
+          {resultsTab === "accepted"
+            ? "No applications have been accepted yet."
+            : "No applications match the selected scores."}
         </p>
       )}
     </div>
