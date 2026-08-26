@@ -5,6 +5,7 @@ import {
   AssignmentStatus,
   Review,
   ReviewScore,
+  OverallScore,
   Decision,
   DecisionValue,
 } from "./types";
@@ -129,16 +130,25 @@ export async function getReviews(): Promise<Review[]> {
     (get) => ({
       uscId: get("usc_id"),
       reviewerEmail: get("reviewer_email"),
+
       experienceScore: Number(
         get("experience_score")
       ) as ReviewScore,
+
       researchScore: Number(
         get("research_score")
       ) as ReviewScore,
+
       qualityScore: Number(
         get("quality_score")
       ) as ReviewScore,
+
+      overallScore: Number(
+        get("overall_score")
+      ) as OverallScore,
+
       notes: get("notes"),
+
       submittedAt: get("submitted_at"),
     })
   );
@@ -155,6 +165,7 @@ export async function submitReview(
     spreadsheetId: process.env.SHEET_ID!,
     range: "Reviews",
     valueInputOption: "RAW",
+
     requestBody: {
       values: [
         [
@@ -163,6 +174,7 @@ export async function submitReview(
           review.experienceScore,
           review.researchScore,
           review.qualityScore,
+          review.overallScore,
           review.notes,
           review.submittedAt,
         ],
@@ -179,12 +191,15 @@ export async function updateReview(
     "Reviews"
   );
 
-  const headers = (rows[0] ?? []).map((header) =>
-    header.trim().toLowerCase()
+  const headers = (rows[0] ?? []).map(
+    (header) => header.trim().toLowerCase()
   );
 
-  const uscIdCol = headers.indexOf("usc_id");
-  const emailCol = headers.indexOf("reviewer_email");
+  const uscIdCol =
+    headers.indexOf("usc_id");
+
+  const emailCol =
+    headers.indexOf("reviewer_email");
 
   const dataIndex = rows
     .slice(1)
@@ -204,8 +219,11 @@ export async function updateReview(
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: process.env.SHEET_ID!,
-    range: `Reviews!A${sheetRow}:G${sheetRow}`,
+
+    range: `Reviews!A${sheetRow}:H${sheetRow}`,
+
     valueInputOption: "RAW",
+
     requestBody: {
       values: [
         [
@@ -214,6 +232,7 @@ export async function updateReview(
           review.experienceScore,
           review.researchScore,
           review.qualityScore,
+          review.overallScore,
           review.notes,
           review.submittedAt,
         ],

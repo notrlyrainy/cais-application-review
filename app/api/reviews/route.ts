@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+
 import {
   getAssignments,
   submitReview,
@@ -43,6 +44,7 @@ export async function POST(request: Request) {
     experienceScore: body.experienceScore,
     researchScore: body.researchScore,
     qualityScore: body.qualityScore,
+    overallScore: body.overallScore,
     notes: body.notes,
     submittedAt: new Date().toISOString(),
   });
@@ -93,6 +95,7 @@ export async function PATCH(request: Request) {
     experienceScore: body.experienceScore,
     researchScore: body.researchScore,
     qualityScore: body.qualityScore,
+    overallScore: body.overallScore,
     notes: body.notes,
     submittedAt: new Date().toISOString(),
   });

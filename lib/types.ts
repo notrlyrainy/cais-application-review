@@ -34,12 +34,15 @@ export type Assignment = {
 
 export type ReviewScore = 1 | 2 | 3;
 
+export type OverallScore = 1 | 2 | 3 | 4;
+
 export type Review = {
   uscId: string,
   reviewerEmail: string,
   experienceScore: ReviewScore,
   researchScore: ReviewScore,
   qualityScore: ReviewScore,
+  overallScore: OverallScore,
   notes: string,
   submittedAt: string
 };

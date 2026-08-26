@@ -8,6 +8,7 @@ import {
   Assignment,
   Review,
   ReviewScore,
+  OverallScore,
 } from "@/lib/types";
 
 import { CRITERIA } from "@/lib/scoring";
@@ -316,9 +317,7 @@ export function ReviewForm({
   onCancel?: () => void;
 }) {
   const [scores, setScores] =
-    useState<
-      Record<string, ReviewScore | null>
-    >({
+    useState<Record<string, number | null>>({
       experienceScore:
         existingReview?.experienceScore ?? null,
 
@@ -327,6 +326,9 @@ export function ReviewForm({
 
       qualityScore:
         existingReview?.qualityScore ?? null,
+
+      overallScore:
+        existingReview?.overallScore ?? null,
     });
 
   const [notes, setNotes] =
@@ -364,7 +366,19 @@ export function ReviewForm({
 
           body: JSON.stringify({
             uscId,
-            ...scores,
+
+            experienceScore:
+              scores.experienceScore as ReviewScore,
+
+            researchScore:
+              scores.researchScore as ReviewScore,
+
+            qualityScore:
+              scores.qualityScore as ReviewScore,
+
+            overallScore:
+              scores.overallScore as OverallScore,
+
             notes,
           }),
         }
@@ -393,7 +407,7 @@ export function ReviewForm({
   }
 
   return (
-    <div className="border rounded-lg p-4 mt-6 space-y-4">
+    <div className="border rounded-lg p-4 mt-6 space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="font-bold">
           {isEditing
@@ -412,44 +426,65 @@ export function ReviewForm({
         )}
       </div>
 
-      {CRITERIA.map((criterion) => (
-        <div key={criterion.key}>
-          <p className="text-sm font-semibold mb-1">
-            {criterion.label}
-          </p>
+      {CRITERIA.map((criterion) => {
+        const levels = Object.entries(
+          criterion.levels
+        );
 
-          <div className="flex gap-2">
-            {[1, 2, 3].map((n) => (
-              <button
-                key={n}
+        return (
+          <div
+            key={criterion.key}
+            className="space-y-2"
+          >
+            <p className="text-sm font-semibold">
+              {criterion.label}
+            </p>
 
-                onClick={() =>
-                  setScores({
-                    ...scores,
+            <div className="space-y-2">
+              {levels.map(
+                ([score, description]) => {
+                  const numericScore =
+                    Number(score);
 
-                    [criterion.key]:
-                      n as ReviewScore,
-                  })
+                  const selected =
+                    scores[criterion.key] ===
+                    numericScore;
+
+                  return (
+                    <button
+                      key={score}
+                      type="button"
+
+                      onClick={() =>
+                        setScores({
+                          ...scores,
+
+                          [criterion.key]:
+                            numericScore,
+                        })
+                      }
+
+                      className={`w-full text-left border rounded-lg px-3 py-2 text-sm transition ${
+                        selected
+                          ? "bg-black text-white dark:bg-white dark:text-black"
+                          : "hover:bg-gray-50 dark:hover:bg-gray-800"
+                      }`}
+                    >
+                      <span className="font-semibold">
+                        {score}
+                      </span>
+
+                      <span className="ml-3">
+                        {description}
+                      </span>
+                    </button>
+                  );
                 }
-
-                className={`px-3 py-1 rounded border text-sm ${
-                  scores[criterion.key] === n
-                    ? "bg-black text-white dark:bg-white dark:text-black"
-                    : "bg-transparent"
-                }`}
-
-                title={
-                  criterion.levels[
-                    n as 1 | 2 | 3
-                  ]
-                }
-              >
-                {n}
-              </button>
-            ))}
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       <div>
         <p className="text-sm font-semibold mb-1">
