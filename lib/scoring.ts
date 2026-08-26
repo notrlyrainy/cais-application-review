@@ -48,50 +48,48 @@ export function overallScore(review: Review): number {
   );
 }
 
-export function averageScores(
-  reviews: Review[]
-):
-  | {
-      experienceScore: number;
-      researchScore: number;
-      qualityScore: number;
-      overall: number;
-    }
-  | null {
-  const n = reviews.length;
+export function averageScores(reviews: Review[]):
+| {
+    experienceScore: number;
+    researchScore: number;
+    qualityScore: number;
+    overall: number;
+}
+| null {
+    const n = reviews.length;
 
-  if (n === 0) return null;
+    if (n === 0) return null;
 
-  const total =
-    reviews.reduce(
-      (sum, r) => sum + overallScore(r),
-      0
-    ) / n;
+    const overall =
+        reviews.reduce(
+            (sum, r) => sum + r.overallScore,
+            0
+        ) / n;
 
-  const experience =
-    reviews.reduce(
-      (sum, r) => sum + r.experienceScore,
-      0
-    ) / n;
+    const experience =
+        reviews.reduce(
+            (sum, r) => sum + r.experienceScore,
+            0
+        ) / n;
 
-  const research =
-    reviews.reduce(
-      (sum, r) => sum + r.researchScore,
-      0
-    ) / n;
+    const research =
+        reviews.reduce(
+            (sum, r) => sum + r.researchScore,
+            0
+        ) / n;
 
-  const quality =
-    reviews.reduce(
-      (sum, r) => sum + r.qualityScore,
-      0
-    ) / n;
+    const quality =
+        reviews.reduce(
+            (sum, r) => sum + r.qualityScore,
+            0
+        ) / n;
 
-  return {
-    experienceScore: experience,
-    researchScore: research,
-    qualityScore: quality,
-    overall: total,
-  };
+    return {
+        experienceScore: experience,
+        researchScore: research,
+        qualityScore: quality,
+        overall,
+    };
 }
 
 // Check if this reviewer's email is in the list of submitted reviews.
