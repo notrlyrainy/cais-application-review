@@ -22,6 +22,12 @@ type DetailData = {
   reviews: Review[];
 };
 
+type DashboardItem = {
+  application: Application;
+  assignments: Assignment[];
+  reviews: Review[];
+};
+
 export default function ApplicationDetail() {
   const { uscId } =
     useParams<{ uscId: string }>();
@@ -38,6 +44,12 @@ export default function ApplicationDetail() {
   const [editingReview, setEditingReview] =
     useState(false);
 
+  const [nextAppId, setNextAppId] =
+    useState<string | null>(null);
+
+  const [nextAppsLoading, setNextAppsLoading] =
+    useState(true);
+
   const { data: session } = useSession();
 
   const myEmail = session?.user?.email;
@@ -51,8 +63,63 @@ export default function ApplicationDetail() {
   }
 
   useEffect(() => {
+    setLoading(true);
+
     reload().then(() => setLoading(false));
   }, [uscId]);
+
+  useEffect(() => {
+    if (!myEmail) {
+      return;
+    }
+
+    async function loadNextApp() {
+      setNextAppsLoading(true);
+
+      try {
+        const response = await fetch(
+          "/api/applications"
+        );
+
+        const result = await response.json();
+
+        const awaitingApps =
+          (result.items as DashboardItem[])
+            .filter((item) =>
+              item.assignments.some(
+                (assignment) =>
+                  assignment.reviewerEmail ===
+                    myEmail &&
+                  assignment.status === "assigned"
+              )
+            );
+
+        const currentIndex =
+          awaitingApps.findIndex(
+            (item) =>
+              item.application.uscId === uscId
+          );
+
+        if (
+          currentIndex !== -1 &&
+          currentIndex <
+            awaitingApps.length - 1
+        ) {
+          setNextAppId(
+            awaitingApps[
+              currentIndex + 1
+            ].application.uscId
+          );
+        } else {
+          setNextAppId(null);
+        }
+      } finally {
+        setNextAppsLoading(false);
+      }
+    }
+
+    loadNextApp();
+  }, [uscId, myEmail]);
 
   if (loading) {
     return <p className="p-8">Loading…</p>;
@@ -114,7 +181,7 @@ export default function ApplicationDetail() {
       if (!response.ok) {
         alert(
           result.error ??
-          "Failed to recuse from application."
+            "Failed to recuse from application."
         );
 
         return;
@@ -258,7 +325,10 @@ export default function ApplicationDetail() {
                 }{" "}
                 · Quality: {
                   review.qualityScore
-                }
+                }{" "}
+                · Overall: {
+                  review.overallScore
+                } / 4
               </p>
 
               <p className="text-sm whitespace-pre-wrap">
@@ -266,11 +336,32 @@ export default function ApplicationDetail() {
               </p>
             </div>
           ))}
+
+          <div className="flex justify-end pt-4">
+            {!nextAppsLoading &&
+              (nextAppId ? (
+                <Link
+                  href={`/applications/${nextAppId}`}
+                  className="px-4 py-2 rounded border text-sm"
+                >
+                  Next app →
+                </Link>
+              ) : (
+                <Link
+                  href="/dashboard?filter=mine&reviewFilter=awaiting"
+                  className="px-4 py-2 rounded border text-sm"
+                >
+                  Back to awaiting reviews
+                </Link>
+              ))}
+          </div>
         </div>
       ) : canReview ? (
         <ReviewForm
           uscId={uscId}
           onSubmitted={reload}
+          nextAppId={nextAppId}
+          nextAppsLoading={nextAppsLoading}
         />
       ) : (
         <div className="mt-6 border rounded-lg p-4">
@@ -310,11 +401,15 @@ export function ReviewForm({
   existingReview,
   onSubmitted,
   onCancel,
+  nextAppId,
+  nextAppsLoading,
 }: {
   uscId: string;
   existingReview?: Review;
   onSubmitted: () => void | Promise<void>;
   onCancel?: () => void;
+  nextAppId?: string | null;
+  nextAppsLoading?: boolean;
 }) {
   const [scores, setScores] =
     useState<Record<string, number | null>>({
@@ -390,11 +485,11 @@ export function ReviewForm({
       if (!response.ok) {
         alert(
           result.error ??
-          `Failed to ${
-            isEditing
-              ? "update"
-              : "submit"
-          } review.`
+            `Failed to ${
+              isEditing
+                ? "update"
+                : "submit"
+            } review.`
         );
 
         return;
@@ -454,16 +549,13 @@ export function ReviewForm({
                     <button
                       key={score}
                       type="button"
-
                       onClick={() =>
                         setScores({
                           ...scores,
-
                           [criterion.key]:
                             numericScore,
                         })
                       }
-
                       className={`w-full text-left border rounded-lg px-3 py-2 text-sm transition ${
                         selected
                           ? "bg-black text-white dark:bg-white dark:text-black"
@@ -493,34 +585,49 @@ export function ReviewForm({
 
         <textarea
           value={notes}
-
           onChange={(event) =>
             setNotes(event.target.value)
           }
-
           className="w-full border rounded p-2 text-sm bg-transparent"
-
           rows={4}
         />
       </div>
 
-      <button
-        onClick={handleSubmit}
+      <div className="flex items-center justify-between gap-4">
+        <button
+          onClick={handleSubmit}
+          disabled={
+            !allScored || submitting
+          }
+          className="px-4 py-2 rounded bg-black text-white dark:bg-white dark:text-black disabled:opacity-40"
+        >
+          {submitting
+            ? isEditing
+              ? "Saving…"
+              : "Submitting…"
+            : isEditing
+              ? "Save Changes"
+              : "Submit Review"}
+        </button>
 
-        disabled={
-          !allScored || submitting
-        }
-
-        className="px-4 py-2 rounded bg-black text-white dark:bg-white dark:text-black disabled:opacity-40"
-      >
-        {submitting
-          ? isEditing
-            ? "Saving…"
-            : "Submitting…"
-          : isEditing
-            ? "Save Changes"
-            : "Submit Review"}
-      </button>
+        {!isEditing &&
+          !nextAppsLoading &&
+          (nextAppId ? (
+            <Link
+              href={`/applications/${nextAppId}`}
+              className="px-4 py-2 rounded border text-sm"
+            >
+              Next app →
+            </Link>
+          ) : (
+            <Link
+              href="/dashboard?filter=mine&reviewFilter=awaiting"
+              className="px-4 py-2 rounded border text-sm"
+            >
+              Back to awaiting reviews
+            </Link>
+          ))}
+      </div>
     </div>
   );
 }
