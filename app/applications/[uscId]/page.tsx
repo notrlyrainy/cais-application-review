@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+
 import {
   Application,
   Assignment,
   Review,
   ReviewScore,
 } from "@/lib/types";
+
 import { CRITERIA } from "@/lib/scoring";
 import { useSession } from "@/lib/auth-client";
 import { reviewerName } from "@/config/reviewers";
@@ -30,6 +32,9 @@ export default function ApplicationDetail() {
     useState(true);
 
   const [working, setWorking] =
+    useState(false);
+
+  const [editingReview, setEditingReview] =
     useState(false);
 
   const { data: session } = useSession();
@@ -72,10 +77,13 @@ export default function ApplicationDetail() {
         assignment.status === "recused"
     );
 
-  const iReviewed = data.reviews.some(
-    (review) =>
-      review.reviewerEmail === myEmail
-  );
+  const myReview =
+    data.reviews.find(
+      (review) =>
+        review.reviewerEmail === myEmail
+    );
+
+  const iReviewed = Boolean(myReview);
 
   const canReview = Boolean(activeAssignment);
 
@@ -87,10 +95,12 @@ export default function ApplicationDetail() {
         "/api/assignments/recuse",
         {
           method: "POST",
+
           headers: {
             "Content-Type":
               "application/json",
           },
+
           body: JSON.stringify({
             uscId,
           }),
@@ -103,7 +113,7 @@ export default function ApplicationDetail() {
       if (!response.ok) {
         alert(
           result.error ??
-            "Failed to recuse from application."
+          "Failed to recuse from application."
         );
 
         return;
@@ -194,11 +204,34 @@ export default function ApplicationDetail() {
         />
       </section>
 
-      {iReviewed ? (
+      {editingReview && myReview ? (
+        <ReviewForm
+          uscId={uscId}
+          existingReview={myReview}
+          onSubmitted={async () => {
+            setEditingReview(false);
+            await reload();
+          }}
+          onCancel={() =>
+            setEditingReview(false)
+          }
+        />
+      ) : iReviewed ? (
         <div className="mt-6 space-y-2">
-          <h2 className="font-bold">
-            Reviews
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold">
+              Reviews
+            </h2>
+
+            <button
+              onClick={() =>
+                setEditingReview(true)
+              }
+              className="px-3 py-1 rounded border text-sm"
+            >
+              Edit your review
+            </button>
+          </div>
 
           {data.reviews.map((review) => (
             <div
@@ -211,7 +244,8 @@ export default function ApplicationDetail() {
                 )}
 
                 {review.reviewerEmail ===
-                  myEmail && " (you)"}
+                  myEmail &&
+                  " (you)"}
               </p>
 
               <p className="text-sm">
@@ -272,22 +306,33 @@ function Field({
 
 export function ReviewForm({
   uscId,
+  existingReview,
   onSubmitted,
+  onCancel,
 }: {
   uscId: string;
-  onSubmitted: () => void;
+  existingReview?: Review;
+  onSubmitted: () => void | Promise<void>;
+  onCancel?: () => void;
 }) {
   const [scores, setScores] =
     useState<
       Record<string, ReviewScore | null>
     >({
-      experienceScore: null,
-      researchScore: null,
-      qualityScore: null,
+      experienceScore:
+        existingReview?.experienceScore ?? null,
+
+      researchScore:
+        existingReview?.researchScore ?? null,
+
+      qualityScore:
+        existingReview?.qualityScore ?? null,
     });
 
   const [notes, setNotes] =
-    useState("");
+    useState(
+      existingReview?.notes ?? ""
+    );
 
   const [submitting, setSubmitting] =
     useState(false);
@@ -296,6 +341,9 @@ export function ReviewForm({
     Object.values(scores).every(
       (score) => score !== null
     );
+
+  const isEditing =
+    Boolean(existingReview);
 
   async function handleSubmit() {
     if (!allScored) return;
@@ -306,11 +354,14 @@ export function ReviewForm({
       const response = await fetch(
         "/api/reviews",
         {
-          method: "POST",
+          method:
+            isEditing ? "PATCH" : "POST",
+
           headers: {
             "Content-Type":
               "application/json",
           },
+
           body: JSON.stringify({
             uscId,
             ...scores,
@@ -325,7 +376,11 @@ export function ReviewForm({
       if (!response.ok) {
         alert(
           result.error ??
-            "Failed to submit review."
+          `Failed to ${
+            isEditing
+              ? "update"
+              : "submit"
+          } review.`
         );
 
         return;
@@ -339,9 +394,23 @@ export function ReviewForm({
 
   return (
     <div className="border rounded-lg p-4 mt-6 space-y-4">
-      <h2 className="font-bold">
-        Your Review
-      </h2>
+      <div className="flex items-center justify-between">
+        <h2 className="font-bold">
+          {isEditing
+            ? "Edit Your Review"
+            : "Your Review"}
+        </h2>
+
+        {isEditing && onCancel && (
+          <button
+            onClick={onCancel}
+            disabled={submitting}
+            className="px-3 py-1 rounded border text-sm disabled:opacity-40"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
 
       {CRITERIA.map((criterion) => (
         <div key={criterion.key}>
@@ -353,18 +422,22 @@ export function ReviewForm({
             {[1, 2, 3].map((n) => (
               <button
                 key={n}
+
                 onClick={() =>
                   setScores({
                     ...scores,
+
                     [criterion.key]:
                       n as ReviewScore,
                   })
                 }
+
                 className={`px-3 py-1 rounded border text-sm ${
                   scores[criterion.key] === n
                     ? "bg-black text-white dark:bg-white dark:text-black"
                     : "bg-transparent"
                 }`}
+
                 title={
                   criterion.levels[
                     n as 1 | 2 | 3
@@ -385,24 +458,33 @@ export function ReviewForm({
 
         <textarea
           value={notes}
+
           onChange={(event) =>
             setNotes(event.target.value)
           }
+
           className="w-full border rounded p-2 text-sm bg-transparent"
+
           rows={4}
         />
       </div>
 
       <button
         onClick={handleSubmit}
+
         disabled={
           !allScored || submitting
         }
+
         className="px-4 py-2 rounded bg-black text-white dark:bg-white dark:text-black disabled:opacity-40"
       >
         {submitting
-          ? "Submitting…"
-          : "Submit Review"}
+          ? isEditing
+            ? "Saving…"
+            : "Submitting…"
+          : isEditing
+            ? "Save Changes"
+            : "Submit Review"}
       </button>
     </div>
   );

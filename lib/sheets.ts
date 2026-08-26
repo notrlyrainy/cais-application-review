@@ -171,6 +171,59 @@ export async function submitReview(
   });
 }
 
+export async function updateReview(
+  review: Review
+): Promise<boolean> {
+  const rows = await getRows(
+    process.env.SHEET_ID!,
+    "Reviews"
+  );
+
+  const headers = (rows[0] ?? []).map((header) =>
+    header.trim().toLowerCase()
+  );
+
+  const uscIdCol = headers.indexOf("usc_id");
+  const emailCol = headers.indexOf("reviewer_email");
+
+  const dataIndex = rows
+    .slice(1)
+    .findIndex(
+      (row) =>
+        row[uscIdCol] === review.uscId &&
+        row[emailCol] === review.reviewerEmail
+    );
+
+  if (dataIndex === -1) {
+    return false;
+  }
+
+  const sheetRow = dataIndex + 2;
+
+  const sheets = getSheetsClient();
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: process.env.SHEET_ID!,
+    range: `Reviews!A${sheetRow}:G${sheetRow}`,
+    valueInputOption: "RAW",
+    requestBody: {
+      values: [
+        [
+          review.uscId,
+          review.reviewerEmail,
+          review.experienceScore,
+          review.researchScore,
+          review.qualityScore,
+          review.notes,
+          review.submittedAt,
+        ],
+      ],
+    },
+  });
+
+  return true;
+}
+
 export async function createAssignment(
   uscId: string,
   reviewerEmail: string
