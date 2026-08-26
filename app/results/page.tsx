@@ -261,7 +261,7 @@ export default function Results() {
                                 </div>
                               </div>
 
-                              <div className="grid grid-cols-3 gap-2 text-sm mb-4">
+                              <div className="grid grid-cols-4 gap-2 text-sm mb-4">
                                 <div className="border rounded p-2">
                                   <p className="text-xs text-gray-500 dark:text-gray-400">
                                     Experience
@@ -296,6 +296,16 @@ export default function Results() {
                                       review.qualityScore
                                     }
                                   </p>
+                                </div>
+
+                                <div className="border rounded p-2">
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        Overall
+                                    </p>
+
+                                    <p className="font-semibold text-lg">
+                                        {review.overallScore}
+                                    </p>
                                 </div>
                               </div>
 
