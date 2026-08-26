@@ -26,6 +26,11 @@ export default function Dashboard() {
     "all" | "mine" | "unassigned"
   >("all");
 
+  const [myReviewFilter, setMyReviewFilter] =
+    useState<
+      "all" | "awaiting" | "reviewed"
+    >("all");
+
   const [autoAssigning, setAutoAssigning] =
     useState(false);
 
@@ -33,28 +38,73 @@ export default function Dashboard() {
     useState(false);
 
   const { data: session } = useSession();
+
   const myEmail = session?.user?.email;
 
-  const isAdmin = myEmail === ADMIN_EMAIL;
+  const isAdmin =
+    myEmail === ADMIN_EMAIL;
+
+  const awaitingReviewCount = items.filter((item) =>
+    item.assignments.some(
+      (assignment) =>
+        assignment.reviewerEmail === myEmail &&
+        assignment.status === "assigned"
+    )
+  ).length;
+
+  const reviewedCount = items.filter((item) =>
+    item.assignments.some(
+      (assignment) =>
+        assignment.reviewerEmail === myEmail &&
+        assignment.status === "completed"
+    )
+  ).length;
 
   const visibleItems = items.filter((item) => {
     if (filter === "all") return true;
 
     if (filter === "unassigned") {
-      return item.assignments.filter(
-        (assignment) =>
-          assignment.status === "assigned" ||
-          assignment.status === "completed"
-      ).length === 0;
+      return (
+        item.assignments.filter(
+          (assignment) =>
+            assignment.status === "assigned" ||
+            assignment.status === "completed"
+        ).length === 0
+      );
     }
 
     if (filter === "mine") {
-      return item.assignments.some(
-        (assignment) =>
-          assignment.reviewerEmail === myEmail &&
-          (assignment.status === "assigned" ||
-            assignment.status === "completed")
-      );
+      const myAssignment =
+        item.assignments.find(
+          (assignment) =>
+            assignment.reviewerEmail ===
+            myEmail
+        );
+
+      if (!myAssignment) {
+        return false;
+      }
+
+      if (
+        myAssignment.status !== "assigned" &&
+        myAssignment.status !== "completed"
+      ) {
+        return false;
+      }
+
+      if (myReviewFilter === "awaiting") {
+        return (
+          myAssignment.status === "assigned"
+        );
+      }
+
+      if (myReviewFilter === "reviewed") {
+        return (
+          myAssignment.status === "completed"
+        );
+      }
+
+      return true;
     }
 
     return true;
@@ -62,7 +112,9 @@ export default function Dashboard() {
 
   function loadItems() {
     return fetch("/api/applications")
-      .then((response) => response.json())
+      .then((response) =>
+        response.json()
+      )
       .then((data) => {
         setItems(data.items);
         setLoading(false);
@@ -90,17 +142,21 @@ export default function Dashboard() {
         }
       );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         alert(
           data.error ??
             "Failed to assign reviewers."
         );
+
         return;
       }
 
-      if (data.assignmentsCreated === 0) {
+      if (
+        data.assignmentsCreated === 0
+      ) {
         alert(
           "All applications already have two reviewers."
         );
@@ -133,17 +189,21 @@ export default function Dashboard() {
         }
       );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         alert(
           data.error ??
             "Failed to rebalance applications."
         );
+
         return;
       }
 
-      if (data.assignmentsMoved === 0) {
+      if (
+        data.assignmentsMoved === 0
+      ) {
         alert(
           "The unread applications are already balanced."
         );
@@ -159,8 +219,25 @@ export default function Dashboard() {
     }
   }
 
+  function selectFilter(
+    newFilter:
+      | "all"
+      | "mine"
+      | "unassigned"
+  ) {
+    setFilter(newFilter);
+
+    if (newFilter !== "mine") {
+      setMyReviewFilter("all");
+    }
+  }
+
   if (loading) {
-    return <p className="p-8">Loading...</p>;
+    return (
+      <p className="p-8">
+        Loading...
+      </p>
+    );
   }
 
   return (
@@ -195,13 +272,19 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-3">
         {(
-          ["all", "mine", "unassigned"] as const
+          [
+            "all",
+            "mine",
+            "unassigned",
+          ] as const
         ).map((f) => (
           <button
             key={f}
-            onClick={() => setFilter(f)}
+            onClick={() =>
+              selectFilter(f)
+            }
             className={`px-3 py-1 rounded ${
               filter === f
                 ? "bg-black text-white dark:bg-white dark:text-black"
@@ -217,10 +300,42 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {filter === "mine" && (
+        <div className="flex gap-2 mb-4">
+          {(
+            [
+              "all",
+              "awaiting",
+              "reviewed",
+            ] as const
+          ).map((f) => (
+            <button
+              key={f}
+              onClick={() =>
+                setMyReviewFilter(f)
+              }
+              className={`px-3 py-1 rounded text-sm ${
+                myReviewFilter === f
+                  ? "bg-gray-700 text-white dark:bg-gray-200 dark:text-black"
+                  : "border text-gray-600 dark:text-gray-300"
+              }`}
+            >
+              {f === "all"
+                ? "All"
+                : f === "awaiting"
+                  ? `Awaiting review (${awaitingReviewCount})`
+                  : `Reviewed (${reviewedCount})`}
+            </button>
+          ))}
+        </div>
+      )}
+
       <ul className="space-y-2">
         {visibleItems.map((item) => (
           <li
-            key={item.application.uscId}
+            key={
+              item.application.uscId
+            }
             className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800"
           >
             <Link
@@ -228,22 +343,35 @@ export default function Dashboard() {
               className="block mb-2"
             >
               <p className="font-medium">
-                {item.application.name}
+                {
+                  item.application
+                    .name
+                }
               </p>
 
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {item.application.year} ·{" "}
-                {item.application.majorMinor}
+                {
+                  item.application
+                    .year
+                }{" "}
+                ·{" "}
+                {
+                  item.application
+                    .majorMinor
+                }
               </p>
             </Link>
 
             <div className="flex items-center justify-between text-sm">
               <p className="text-gray-500 dark:text-gray-400">
-                {item.assignments.length === 0
+                {item.assignments
+                  .length === 0
                   ? "Unassigned"
                   : item.assignments
                       .map(
-                        (assignment) =>
+                        (
+                          assignment
+                        ) =>
                           `${reviewerName(
                             assignment.reviewerEmail
                           )} (${assignment.status})`
@@ -254,6 +382,20 @@ export default function Dashboard() {
           </li>
         ))}
       </ul>
+
+      {visibleItems.length === 0 && (
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-6">
+          {filter === "mine" &&
+          myReviewFilter ===
+            "awaiting"
+            ? "You have no applications awaiting review."
+            : filter === "mine" &&
+                myReviewFilter ===
+                  "reviewed"
+              ? "You have no completed reviews yet."
+              : "No applications found."}
+        </p>
+      )}
     </div>
   );
 }
