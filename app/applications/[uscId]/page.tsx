@@ -262,6 +262,11 @@ export default function ApplicationDetail() {
         />
 
         <Field
+          label="Portfolio / website / GitHub / resume / other links"
+          value={app.links}
+        />
+
+        <Field
           label="AI social issue proposal"
           value={app.socialResponse}
         />
