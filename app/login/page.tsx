@@ -1,4 +1,5 @@
 "use client";
+
 import { useRouter } from "next/navigation";
 import { REVIEWERS } from "@/config/reviewers";
 
@@ -11,16 +12,17 @@ export default function LoginPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
     });
+
     router.push("/dashboard");
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-10 w-full max-w-md text-center">
-        <h1 className="text-2xl font-bold mb-2">CAIS++ Review Portal</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
-          [DEV MODE] Pick a fake identity — real Google sign-in comes later
-        </p>
+        <h1 className="text-2xl font-bold mb-8">
+          CAIS++ Review Portal
+        </h1>
+
         <div className="space-y-2">
           {REVIEWERS.map((r) => (
             <button

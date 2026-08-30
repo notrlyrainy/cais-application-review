@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import {
   Application,
   Assignment,
@@ -19,7 +19,7 @@ type Item = {
 
 const ADMIN_EMAIL = "anniegao@usc.edu";
 
-export default function Dashboard() {
+function DashboardContent() {
   const searchParams = useSearchParams();
 
   const initialFilter =
@@ -35,6 +35,7 @@ export default function Dashboard() {
       : searchParams.get("reviewFilter") === "reviewed"
         ? "reviewed"
         : "all";
+
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -413,5 +414,13 @@ export default function Dashboard() {
         </p>
       )}
     </div>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <Suspense fallback={<p className="p-8">Loading...</p>}>
+      <DashboardContent />
+    </Suspense>
   );
 }
