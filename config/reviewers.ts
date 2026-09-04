@@ -9,6 +9,16 @@ export const REVIEWERS = [
     { name: "Siya", email: "siyaaror@usc.edu" },
 ];
 
+export const GUEST_REVIEWER = {
+    name: "Guest",
+    email: "guest@usc.edu",
+};
+
+export const LOGIN_USERS = [
+    ...REVIEWERS,
+    GUEST_REVIEWER,
+];
+
 export function reviewerName(email: string): string {
-    return REVIEWERS.find((r) => r.email === email)?.name ?? email;
+    return LOGIN_USERS.find((r) => r.email === email)?.name ?? email;
 }

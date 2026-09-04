@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { REVIEWERS } from "@/config/reviewers";
+import { LOGIN_USERS } from "@/config/reviewers";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -24,7 +24,7 @@ export default function LoginPage() {
         </h1>
 
         <div className="space-y-2">
-          {REVIEWERS.map((r) => (
+          {LOGIN_USERS.map((r) => (
             <button
               key={r.email}
               onClick={() => loginAs(r.email)}
