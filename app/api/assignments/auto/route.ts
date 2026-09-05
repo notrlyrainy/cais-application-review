@@ -1,29 +1,25 @@
 import { auth } from "@/auth";
-import {
-  createAssignments,
-  getApplications,
-  getAssignments,
-} from "@/lib/sheets";
 import { REVIEWERS } from "@/config/reviewers";
+import { createAssignments, getApplications, getAssignments } from "@/lib/sheets";
 
 export async function POST() {
   const session = await auth();
 
   if (!session?.user) {
-    return Response.json(
-      { error: "Unauthorized" },
-      { status: 401 }
-    );
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const applications = await getApplications();
   const existingAssignments = await getAssignments();
 
-  // Generate every unique pair of reviewers.
-  const reviewerPairs: [
-    (typeof REVIEWERS)[number],
-    (typeof REVIEWERS)[number]
-  ][] = [];
+  // A USC ID should correspond to exactly one application.
+  // Deduplicate defensively in case someone submits the form more than once.
+  const uniqueApplications = Array.from(
+    new Map(applications.map((application) => [application.uscId, application])).values()
+  );
+
+  // Generate every possible reviewer pair.
+  const reviewerPairs: [typeof REVIEWERS[number], typeof REVIEWERS[number]][] = [];
 
   for (let i = 0; i < REVIEWERS.length; i++) {
     for (let j = i + 1; j < REVIEWERS.length; j++) {
@@ -36,31 +32,23 @@ export async function POST() {
     reviewerEmail: string;
   }[] = [];
 
-  for (let index = 0; index < applications.length; index++) {
-    const application = applications[index];
+  for (let index = 0; index < uniqueApplications.length; index++) {
+    const application = uniqueApplications[index];
 
     const assignedReviewers = existingAssignments
-      .filter(
-        (assignment) => assignment.uscId === application.uscId
-      )
+      .filter((assignment) => assignment.uscId === application.uscId)
       .map((assignment) => assignment.reviewerEmail);
 
-    // Skip applications that already have two reviewers.
+    // Already has two reviewers.
     if (assignedReviewers.length >= 2) {
       continue;
     }
 
-    // Each application's reviewer pair is based on its position
-    // in the full application list.
     const [reviewer1, reviewer2] =
       reviewerPairs[index % reviewerPairs.length];
 
-    const intendedReviewers = [
-      reviewer1.email,
-      reviewer2.email,
-    ];
+    const intendedReviewers = [reviewer1.email, reviewer2.email];
 
-    // Only add reviewers who aren't already assigned.
     for (const reviewerEmail of intendedReviewers) {
       if (!assignedReviewers.includes(reviewerEmail)) {
         assignmentsToCreate.push({
@@ -71,19 +59,11 @@ export async function POST() {
     }
   }
 
-  if (assignmentsToCreate.length === 0) {
-    return Response.json({
-      ok: true,
-      message: "All applications are already assigned.",
-      assignmentsCreated: 0,
-    });
+  if (assignmentsToCreate.length > 0) {
+    await createAssignments(assignmentsToCreate);
   }
 
-  await createAssignments(assignmentsToCreate);
-
   return Response.json({
-    ok: true,
-    applicationsChecked: applications.length,
-    assignmentsCreated: assignmentsToCreate.length,
+    created: assignmentsToCreate.length,
   });
 }
